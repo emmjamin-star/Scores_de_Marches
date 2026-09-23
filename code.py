@@ -820,7 +820,7 @@ if st.button("Lancer le calcul des scores de marche"):
                     'GVS_Right': dict(zip(self.gvs_labels, m_gvs_R))
                 }
         if __name__ == "__main__":
-            matrice_saine = "/Scores_de_Marches/matrice_temoins_459.npy"
+            matrice_saine = "matrice_temoins_459.npy"
     
         # Remplacez par vos fichiers
             essais_patient = trials_list
