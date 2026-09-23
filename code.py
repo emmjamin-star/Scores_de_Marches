@@ -5,7 +5,6 @@ import pandas as pd
 import math
 import os
 import matplotlib.pyplot as plt
-matplotlib.use('Agg') # Rendement graphique sans interface
 from scipy.signal import savgol_filter, hilbert, find_peaks
 from scipy.interpolate import interp1d
 from sklearn.preprocessing import MinMaxScaler
