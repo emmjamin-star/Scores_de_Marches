@@ -807,12 +807,12 @@ if st.button("Lancer le calcul des scores de marche"):
                 mean_gdi_overall = (m_gdi_L + m_gdi_R) / 2.0
                 mean_gps_overall = (m_gps_L + m_gps_R) / 2.0
                 
-        st.markdown("### 📊 GAIT DEVIATION INDEX (GDI)")
-        st.write(f"Gauche : {m_gdi_L:.1f}  |  Droit : {m_gdi_R:.1f}  |  Moyenne Globale : {mean_gdi_overall:.1f}")
-        st.markdown("### 📐 GAIT PROFILE SCORE (GPS")
-        st.write(f"Gauche : {m_gps_L:.1f}° |  Droit : {m_gps_R:.1f}° |  Moyenne Globale : {mean_gps_overall:.1f}")
-        st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 105. Tout score en-dehors indique une atteinte à la variabilité de la marche.")
-        self.generate_bilateral_map_chart(m_gvs_L, m_gvs_R, m_gps_L, m_gps_R, output_chart_path)
+                st.markdown("### 📊 GAIT DEVIATION INDEX (GDI)")
+                st.write(f"Gauche : {m_gdi_L:.1f}  |  Droit : {m_gdi_R:.1f}  |  Moyenne Globale : {mean_gdi_overall:.1f}")
+                st.markdown("### 📐 GAIT PROFILE SCORE (GPS")
+                st.write(f"Gauche : {m_gps_L:.1f}° |  Droit : {m_gps_R:.1f}° |  Moyenne Globale : {mean_gps_overall:.1f}")
+                st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 105. Tout score en-dehors indique une atteinte à la variabilité de la marche.")
+                self.generate_bilateral_map_chart(m_gvs_L, m_gvs_R, m_gps_L, m_gps_R, output_chart_path)
 
         return {
             'GDI': {'Left': m_gdi_L, 'Right': m_gdi_R, 'Overall': mean_gdi_overall},
@@ -821,9 +821,11 @@ if st.button("Lancer le calcul des scores de marche"):
             'GVS_Right': dict(zip(self.gvs_labels, m_gvs_R))
         }
         if __name__ == "__main__":
-            matrice_saine = "/content/matrice_temoins_459.npy"
+            matrice_saine = "/Scores_de_Marches/matrice_temoins_459.npy"
     
         # Remplacez par vos fichiers
             essais_patient = trials_list
+            analyzer = MasterGaitAnalyzer(healthy_matrix_path=matrice_saine)
+            results = analyzer.run_full_analysis(essais_patient, output_chart_path="map_profile_bilateral.png")
     except Exception as e:
         st.error(f"Erreur pendant l'analyse : {e}")
