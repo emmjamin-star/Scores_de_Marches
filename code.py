@@ -774,7 +774,7 @@ if st.button("Lancer le calcul des scores de marche"):
                 scores = {'GDI_L': [], 'GDI_R': [], 'GPS_L': [], 'GPS_R': [], 'GVS_L': [], 'GVS_R': []}
         
                 st.write("=========================================================")
-                st.write("     ANALYSE GLOBALE BILATÉRALE DE LA MARCHE (L / R)     ")
+                st.write("###     ANALYSE GLOBALE BILATÉRALE DE LA MARCHE (L / R)     ")
                 st.write("=========================================================")
         
                 for i, filepath in enumerate(c3d_files_list, 1):
@@ -792,7 +792,7 @@ if st.button("Lancer le calcul des scores de marche"):
                     scores['GPS_L'].append(gps_L); scores['GPS_R'].append(gps_R)
                     scores['GVS_L'].append(gvs_L); scores['GVS_R'].append(gvs_R)
         
-                    st.write(f"Essai {i} ({os.path.basename(filepath)}) :")
+                    st.write(f"### Essai {i} :")
                     st.write(f"  • Gauche -> GDI: {gdi_L:5.1f} | GPS: {gps_L:4.1f}°")
                     st.write(f"  • Droit  -> GDI: {gdi_R:5.1f} | GPS: {gps_R:4.1f}°")
         
