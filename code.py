@@ -813,13 +813,13 @@ if st.button("Lancer le calcul des scores de marche"):
                 st.write(f"Gauche : {m_gps_L:.1f}° |  Droit : {m_gps_R:.1f}° |  Moyenne Globale : {mean_gps_overall:.1f}")
                 st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 105. Tout score en-dehors indique une atteinte à la variabilité de la marche.")
                 self.generate_bilateral_map_chart(m_gvs_L, m_gvs_R, m_gps_L, m_gps_R, output_chart_path)
-
-            return {
-                'GDI': {'Left': m_gdi_L, 'Right': m_gdi_R, 'Overall': mean_gdi_overall},
-                'GPS': {'Left': m_gps_L, 'Right': m_gps_R, 'Overall': mean_gps_overall},
-                'GVS_Left': dict(zip(self.gvs_labels, m_gvs_L)),
-                'GVS_Right': dict(zip(self.gvs_labels, m_gvs_R))
-            }
+    
+                return {
+                    'GDI': {'Left': m_gdi_L, 'Right': m_gdi_R, 'Overall': mean_gdi_overall},
+                    'GPS': {'Left': m_gps_L, 'Right': m_gps_R, 'Overall': mean_gps_overall},
+                    'GVS_Left': dict(zip(self.gvs_labels, m_gvs_L)),
+                    'GVS_Right': dict(zip(self.gvs_labels, m_gvs_R))
+                }
         if __name__ == "__main__":
             matrice_saine = "/Scores_de_Marches/matrice_temoins_459.npy"
     
