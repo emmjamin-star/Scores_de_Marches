@@ -5,11 +5,13 @@ import pandas as pd
 import math
 import os
 import matplotlib.pyplot as plt
+matplotlib.use('Agg') # Rendement graphique sans interface
 from scipy.signal import savgol_filter, hilbert, find_peaks
 from scipy.interpolate import interp1d
 from sklearn.preprocessing import MinMaxScaler
 import tempfile
 from math import sqrt
+import seaborn as sns
 
 st.set_page_config(page_title="Scores de marches - Faps, eFaps, eGVI, GDI, GPS", layout="centered")
 st.title("🦿 Scores de marches - Faps, eFaps, eGVI, GDI, GPS")
@@ -596,6 +598,232 @@ if st.button("Lancer le calcul des scores de marche"):
         st.write(f"Score EGVI Droit  : {egvi_resultat_D:.2f}")
         st.write(f"Score EGVI Global : {EGVItot:.2f}")
         st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 105. Tout score en-dehors indique une atteinte à la variabilité de la marche.")
+    
+        # Calcul GDP & GVI
+        # Thème clinique Seaborn
+        sns.set_theme(style='whitegrid', palette='colorblind', font='DejaVu Sans')
+        
+        class MasterGaitAnalyzer:
+            """
+            Analyseur maître bilatéral de la marche cinématique :
+            1. Extraction avec correction Vicon (LPelvis utilisé pour le bassin G et D).
+            2. GDI et GPS séparés pour le côté Gauche et le côté Droit + Moyennes.
+            3. Movement Analysis Profile (MAP) bilatéral (Barres groupées).
+            """
+            def __init__(self, healthy_matrix_path, n_points_per_curve=51):
+                self.healthy_matrix_path = healthy_matrix_path
+                self.n_points_per_curve = n_points_per_curve
+        
+                # Configuration des canaux (Nom de base, Index de l'axe spatial 0=X, 1=Y, 2=Z)
+                self.gdi_channels_config = [
+                    ('PelvisAngles', 0),       # 1. Tilt (X)
+                    ('PelvisAngles', 1),       # 2. Obliquité (Y)
+                    ('PelvisAngles', 2),       # 3. Rotation (Z)
+                    ('HipAngles', 0),          # 4. Flexion (X)
+                    ('HipAngles', 1),          # 5. Adduction (Y)
+                    ('HipAngles', 2),          # 6. Rotation de hanche (Z)
+                    ('KneeAngles', 0),         # 7. Flexion de genou (X)
+                    ('AnkleAngles', 0),        # 8. Dorsiflexion de cheville (X)
+                    ('FootProgressAngles', 2)  # 9. Angle de progression du pied (Z)
+                ]
+        
+                self.gvs_labels = [
+                    'Pelvic Tilt', 'Pelvic Obliquity', 'Pelvic Rotation',
+                    'Hip Flexion', 'Hip Adduction', 'Hip Rotation',
+                    'Knee Flexion', 'Ankle Dorsiflexion', 'Foot Progression'
+                ]
+        
+                self.expected_rows = len(self.gdi_channels_config) * self.n_points_per_curve
+                self._load_and_fit_healthy_reference()
+        
+            def _load_and_fit_healthy_reference(self):
+                """Charge la matrice saine (459 points) servant de référence normative."""
+                if not os.path.exists(self.healthy_matrix_path):
+                    raise FileNotFoundError(f"Matrice saine '{self.healthy_matrix_path}' introuvable.")
+        
+                if self.healthy_matrix_path.endswith('.npy'):
+                    self.healthy_matrix = np.load(self.healthy_matrix_path)
+                elif self.healthy_matrix_path.endswith('.csv'):
+                    self.healthy_matrix = np.loadtxt(self.healthy_matrix_path, delimiter=',')
+        
+                n_temoins = self.healthy_matrix.shape[1]
+        
+                # Moyennes normatives pour le GPS
+                self.mean_healthy_vector = np.mean(self.healthy_matrix, axis=1, keepdims=True)
+                self.healthy_mean_curves = self.mean_healthy_vector.reshape(len(self.gdi_channels_config), self.n_points_per_curve)
+        
+                # Modèle SVD pour le GDI
+                centered_healthy = self.healthy_matrix - self.mean_healthy_vector
+                U, S, Vt = np.linalg.svd(centered_healthy, full_matrices=False)
+                self.feature_base = U[:, :15]
+        
+                projected_healthy = np.dot(self.feature_base.T, centered_healthy)
+                raw_distances_healthy = np.sqrt(np.sum(projected_healthy**2, axis=0))
+        
+                self.mean_raw_healthy_gdi = np.mean(raw_distances_healthy)
+                self.std_raw_healthy_gdi = np.std(raw_distances_healthy)
+        
+                print(f"✅ Modèle bilatéral GDI & GPS initialisé ({n_temoins} témoins).\n")
+        
+            def _resample_curve(self, curve_data):
+                """Rééchantillonne sur 51 points et gère les potentiels NaN."""
+                if np.isnan(curve_data).any():
+                    curve_data = np.nan_to_num(curve_data, nan=np.nanmean(curve_data))
+                x_old = np.linspace(0, 100, len(curve_data))
+                x_new = np.linspace(0, 100, self.n_points_per_curve)
+                return interp1d(x_old, curve_data, kind='cubic', fill_value="extrapolate")(x_new)
+        
+            def _extract_and_trim_channel(self, points_data, point_labels, target_label, axis_idx):
+                """Trouve le canal, extrait l'axe demandé, et supprime les zéros de fin (padding)."""
+                if target_label not in point_labels:
+                    raise KeyError(f"Canal '{target_label}' introuvable.")
+        
+                idx = point_labels.index(target_label)
+                raw_curve = points_data[axis_idx, idx, :]
+        
+                non_zero_indices = np.nonzero(raw_curve)[0]
+                if len(non_zero_indices) == 0:
+                    raise ValueError(f"Canal '{target_label}' entièrement vide.")
+        
+                return raw_curve[:non_zero_indices[-1] + 1]
+        
+            def extract_kinematics_from_c3d(self, c3d_filepath):
+                """Extrait et sépare la cinématique Gauche et Droite."""
+                if ezc3d is None:
+                    raise ImportError("Installez 'ezc3d' (`pip install ezc3d`).")
+        
+                c3d = ezc3d.c3d(c3d_filepath)
+                point_labels = [label.strip() for label in c3d['parameters']['POINT']['LABELS']['value']]
+                points_data = c3d['data']['points']
+        
+                curves_L = np.zeros((len(self.gdi_channels_config), self.n_points_per_curve))
+                curves_R = np.zeros((len(self.gdi_channels_config), self.n_points_per_curve))
+        
+                for i, (base_label, axis_idx) in enumerate(self.gdi_channels_config):
+                    # CORRECTION BASSIN : Utilisation exclusive de LPelvis pour G et D
+                    if base_label == 'PelvisAngles':
+                        label_L = "LPelvisAngles"
+                        label_R = "LPelvisAngles"
+                    else:
+                        label_L = f"L{base_label}"
+                        label_R = f"R{base_label}"
+        
+                    raw_L = self._extract_and_trim_channel(points_data, point_labels, label_L, axis_idx)
+                    raw_R = self._extract_and_trim_channel(points_data, point_labels, label_R, axis_idx)
+        
+                    curves_L[i, :] = self._resample_curve(raw_L)
+                    curves_R[i, :] = self._resample_curve(raw_R)
+        
+                return curves_L, curves_R
+        
+            def compute_gdi_trial(self, patient_vector_col):
+                """Calcule le Z-score GDI."""
+                centered = patient_vector_col - self.mean_healthy_vector
+                projected = np.dot(self.feature_base.T, centered)
+                raw_dist = np.sqrt(np.sum(projected**2))
+                z_score = (raw_dist - self.mean_raw_healthy_gdi) / self.std_raw_healthy_gdi
+                return 100.0 - (10.0 * z_score)
+        
+            def compute_gps_trial(self, patient_curves_matrix):
+                """Calcule les 9 GVS et le GPS."""
+                gvs = np.sqrt(np.mean((patient_curves_matrix - self.healthy_mean_curves)**2, axis=1))
+                gps = np.sqrt(np.mean(gvs**2))
+                return gps, gvs
+        
+            def generate_bilateral_map_chart(self, gvs_L, gvs_R, gps_L, gps_R, output_filename):
+                """Génère le graphique MAP comparant la Gauche et la Droite."""
+                labels = self.gvs_labels[::-1]
+                val_L = gvs_L[::-1]
+                val_R = gvs_R[::-1]
+        
+                y = np.arange(len(labels))
+                height = 0.38
+        
+                fig, ax = plt.subplots(figsize=(10, 8), dpi=150)
+        
+                # Tracé des barres (Rouge = Gauche, Vert = Droit) convention clinique
+                bars_L = ax.barh(y + height/2, val_L, height, label=f'Côté Gauche (GPS: {gps_L:.1f}°)', color='#d62728')
+                bars_R = ax.barh(y - height/2, val_R, height, label=f'Côté Droit (GPS: {gps_R:.1f}°)', color='#2ca02c')
+        
+                # Ajout des valeurs numériques
+                for bar in bars_L:
+                    ax.text(bar.get_width() + 0.2, bar.get_y() + bar.get_height()/2, f'{bar.get_width():.1f}',
+                            va='center', fontsize=9, color='#d62728', fontweight='bold')
+                for bar in bars_R:
+                    ax.text(bar.get_width() + 0.2, bar.get_y() + bar.get_height()/2, f'{bar.get_width():.1f}',
+                            va='center', fontsize=9, color='#2ca02c', fontweight='bold')
+        
+                # Ligne de référence
+                ax.axvline(5.4, color='gray', linestyle='--', linewidth=1.5, label='Référence Normative saine (5.4°)')
+        
+                ax.set_yticks(y)
+                ax.set_yticklabels(labels, fontsize=10, fontweight='bold')
+                ax.set_xlabel('Gait Variable Score - GVS (°)', fontsize=11, fontweight='bold')
+                ax.set_title("Movement Analysis Profile (MAP) Bilatéral", fontsize=14, fontweight='bold', pad=15)
+        
+                ax.set_xlim(0, max(max(val_L), max(val_R)) + 3.5)
+                ax.legend(loc='lower right', frameon=True, facecolor='white')
+                sns.despine(left=True)
+        
+                plt.tight_layout()
+                plt.savefig(output_filename, dpi=150, bbox_inches='tight')
+                plt.close()
+                print(f"📊 Graphique MAP sauvegardé sous '{output_filename}'")
+        
+            def run_full_analysis(self, c3d_files_list, output_chart_path='map_profile_bilateral.png'):
+                """Analyse complète moyennée sur les 5 essais."""
+                scores = {'GDI_L': [], 'GDI_R': [], 'GPS_L': [], 'GPS_R': [], 'GVS_L': [], 'GVS_R': []}
+        
+                st.write("=========================================================")
+                st.write("     ANALYSE GLOBALE BILATÉRALE DE LA MARCHE (L / R)     ")
+                st.write("=========================================================")
+        
+                for i, filepath in enumerate(c3d_files_list, 1):
+                    curves_L, curves_R = self.extract_kinematics_from_c3d(filepath)
+        
+                    # GDI
+                    gdi_L = self.compute_gdi_trial(curves_L.reshape(-1, 1))
+                    gdi_R = self.compute_gdi_trial(curves_R.reshape(-1, 1))
+        
+                    # GPS / GVS
+                    gps_L, gvs_L = self.compute_gps_trial(curves_L)
+                    gps_R, gvs_R = self.compute_gps_trial(curves_R)
+        
+                    scores['GDI_L'].append(gdi_L); scores['GDI_R'].append(gdi_R)
+                    scores['GPS_L'].append(gps_L); scores['GPS_R'].append(gps_R)
+                    scores['GVS_L'].append(gvs_L); scores['GVS_R'].append(gvs_R)
+        
+                    st.write(f"Essai {i} ({os.path.basename(filepath)}) :")
+                    st.write(f"  • Gauche -> GDI: {gdi_L:5.1f} | GPS: {gps_L:4.1f}°")
+                    st.write(f"  • Droit  -> GDI: {gdi_R:5.1f} | GPS: {gps_R:4.1f}°")
+        
+                # Moyennes Globales
+                m_gdi_L = np.mean(scores['GDI_L']); m_gdi_R = np.mean(scores['GDI_R'])
+                m_gps_L = np.mean(scores['GPS_L']); m_gps_R = np.mean(scores['GPS_R'])
+        
+                m_gvs_L = np.mean(np.array(scores['GVS_L']), axis=0)
+                m_gvs_R = np.mean(np.array(scores['GVS_R']), axis=0)
+        
+                mean_gdi_overall = (m_gdi_L + m_gdi_R) / 2.0
+                mean_gps_overall = (m_gps_L + m_gps_R) / 2.0
+                
+        st.markdown("### 📊 GAIT DEVIATION INDEX (GDI)")
+        st.write(f"Gauche : {m_gdi_L:.1f}  |  Droit : {m_gdi_R:.1f}  |  Moyenne Globale : {mean_gdi_overall:.1f}")
+        st.markdown("### 📐 GAIT PROFILE SCORE (GPS")
+        st.write(f"Gauche : {m_gps_L:.1f}° |  Droit : {m_gps_R:.1f}° |  Moyenne Globale : {mean_gps_overall:.1f}")
+        st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 105. Tout score en-dehors indique une atteinte à la variabilité de la marche.")
+        self.generate_bilateral_map_chart(m_gvs_L, m_gvs_R, m_gps_L, m_gps_R, output_chart_path)
 
+        return {
+            'GDI': {'Left': m_gdi_L, 'Right': m_gdi_R, 'Overall': mean_gdi_overall},
+            'GPS': {'Left': m_gps_L, 'Right': m_gps_R, 'Overall': mean_gps_overall},
+            'GVS_Left': dict(zip(self.gvs_labels, m_gvs_L)),
+            'GVS_Right': dict(zip(self.gvs_labels, m_gvs_R))
+        }
+        if __name__ == "__main__":
+            matrice_saine = "/content/matrice_temoins_459.npy"
+    
+        # Remplacez par vos fichiers
+            essais_patient = trials_list
     except Exception as e:
         st.error(f"Erreur pendant l'analyse : {e}")
