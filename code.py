@@ -341,5 +341,5 @@ if st.button("Lancer le calcul des scores de marche"):
         trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path]
         calculate_efaps(trials_list, tmp_path, walking_aids=False, assistive_devices=False)
 
-      except Exception as e:
+    except Exception as e:
         st.error(f"Erreur pendant l'analyse : {e}")
