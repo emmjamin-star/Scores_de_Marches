@@ -363,6 +363,7 @@ if st.button("Lancer le calcul des scores de marche"):
             st.markdown("### 📊 Résultats du score eFAPS")
             st.write(f"Score eFAPS : {score_faps:.2f}")
             st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 100. Tout score en-dehors indique une atteinte à la fonctionnalité de la marche.")
+            st.write(f"**Différences avec le FAPS** : la normalisation de la vitesse se fait sur la base du nombre de Froud pour réduire la sensibilité à la vitesse du score et les aides de marches/dispositiifs d'assistances suivent une décotent progressive en fonction de leur caractère aidant, ces classements ont été réalisé avec des thérapeutes.")
             
         calculate_efaps(trials_list, tmp_path, walking_aids=False, assistive_devices=False)
        
