@@ -852,6 +852,6 @@ if st.button("Lancer le calcul des scores de marche"):
         # Remplacez par vos fichiers
             essais_patient = trials_list
             analyzer = MasterGaitAnalyzer(healthy_matrix_path=matrice_saine)
-            results = analyzer.run_full_analysis(essais_patient, output_chart_path="map_profile_bilateral.png")
+            results = analyzer.run_full_analysis(essais_patient)
     except Exception as e:
         st.error(f"Erreur pendant l'analyse : {e}")
