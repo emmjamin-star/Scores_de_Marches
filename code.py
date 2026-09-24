@@ -755,21 +755,21 @@ if st.button("Lancer le calcul des scores de marche"):
                 gps = np.sqrt(np.mean(gvs**2))
                 return gps, gvs
         
-            def generate_bilateral_map_chart(self, gvs_L, gvs_R, gps_L, gps_R, output_filename):
-                """Génère le graphique MAP comparant la Gauche et la Droite."""
+            def generate_bilateral_map_chart(self, gvs_L, gvs_R, gps_L, gps_R):
+                """Génère et affiche le graphique MAP comparant la Gauche et la Droite sur Streamlit."""
                 labels = self.gvs_labels[::-1]
                 val_L = gvs_L[::-1]
                 val_R = gvs_R[::-1]
-        
+            
                 y = np.arange(len(labels))
                 height = 0.38
-        
+            
                 fig, ax = plt.subplots(figsize=(10, 8), dpi=150)
-        
+            
                 # Tracé des barres (Rouge = Gauche, Vert = Droit) convention clinique
                 bars_L = ax.barh(y + height/2, val_L, height, label=f'Côté Gauche (GPS: {gps_L:.1f}°)', color='#d62728')
                 bars_R = ax.barh(y - height/2, val_R, height, label=f'Côté Droit (GPS: {gps_R:.1f}°)', color='#2ca02c')
-        
+            
                 # Ajout des valeurs numériques
                 for bar in bars_L:
                     ax.text(bar.get_width() + 0.2, bar.get_y() + bar.get_height()/2, f'{bar.get_width():.1f}',
@@ -777,73 +777,75 @@ if st.button("Lancer le calcul des scores de marche"):
                 for bar in bars_R:
                     ax.text(bar.get_width() + 0.2, bar.get_y() + bar.get_height()/2, f'{bar.get_width():.1f}',
                             va='center', fontsize=9, color='#2ca02c', fontweight='bold')
-        
+            
                 # Ligne de référence
                 ax.axvline(5.4, color='gray', linestyle='--', linewidth=1.5, label='Référence Normative saine (5.4°)')
-        
+            
                 ax.set_yticks(y)
                 ax.set_yticklabels(labels, fontsize=10, fontweight='bold')
                 ax.set_xlabel('Gait Variable Score - GVS (°)', fontsize=11, fontweight='bold')
                 ax.set_title("Movement Analysis Profile (MAP) Bilatéral", fontsize=14, fontweight='bold', pad=15)
-        
+            
                 ax.set_xlim(0, max(max(val_L), max(val_R)) + 3.5)
                 ax.legend(loc='lower right', frameon=True, facecolor='white')
                 sns.despine(left=True)
-        
+            
                 plt.tight_layout()
-                plt.savefig(output_filename, dpi=150, bbox_inches='tight')
-                plt.close()
-                print(f"📊 Graphique MAP sauvegardé sous '{output_filename}'")
+                
+                # Affichage du graphique directement dans l'interface Streamlit
+                st.pyplot(fig)
         
-            def run_full_analysis(self, c3d_files_list, output_chart_path='map_profile_bilateral.png'):
-                """Analyse complète moyennée sur les 5 essais."""
+            def run_full_analysis(self, c3d_files_list):
+                """Analyse complète moyennée sur les essais."""
                 scores = {'GDI_L': [], 'GDI_R': [], 'GPS_L': [], 'GPS_R': [], 'GVS_L': [], 'GVS_R': []}
-        
+            
                 st.write("=========================================================")
                 st.write("###     ANALYSE GLOBALE BILATÉRALE DE LA MARCHE (L / R)     ")
                 st.write("=========================================================")
-        
+            
                 for i, filepath in enumerate(c3d_files_list, 1):
                     curves_L, curves_R = self.extract_kinematics_from_c3d(filepath)
-        
+            
                     # GDI
                     gdi_L = self.compute_gdi_trial(curves_L.reshape(-1, 1))
                     gdi_R = self.compute_gdi_trial(curves_R.reshape(-1, 1))
-        
+            
                     # GPS / GVS
                     gps_L, gvs_L = self.compute_gps_trial(curves_L)
                     gps_R, gvs_R = self.compute_gps_trial(curves_R)
-        
+            
                     scores['GDI_L'].append(gdi_L); scores['GDI_R'].append(gdi_R)
                     scores['GPS_L'].append(gps_L); scores['GPS_R'].append(gps_R)
                     scores['GVS_L'].append(gvs_L); scores['GVS_R'].append(gvs_R)
-        
-                    st.write(f"### Essai {i} :")
-                    st.write(f"  • Gauche -> GDI: {gdi_L:5.1f} | GPS: {gps_L:4.1f}°")
-                    st.write(f"  • Droit  -> GDI: {gdi_R:5.1f} | GPS: {gps_R:4.1f}°")
-        
+            
+            
                 # Moyennes Globales
                 m_gdi_L = np.mean(scores['GDI_L']); m_gdi_R = np.mean(scores['GDI_R'])
                 m_gps_L = np.mean(scores['GPS_L']); m_gps_R = np.mean(scores['GPS_R'])
-        
+            
                 m_gvs_L = np.mean(np.array(scores['GVS_L']), axis=0)
                 m_gvs_R = np.mean(np.array(scores['GVS_R']), axis=0)
-        
+            
                 mean_gdi_overall = (m_gdi_L + m_gdi_R) / 2.0
                 mean_gps_overall = (m_gps_L + m_gps_R) / 2.0
                 
                 st.markdown("### 📊 GAIT DEVIATION INDEX (GDI)")
                 st.write(f"Gauche : {m_gdi_L:.1f}  |  Droit : {m_gdi_R:.1f}  |  Moyenne Globale : {mean_gdi_overall:.1f}")
-                st.markdown("### 📐 GAIT PROFILE SCORE (GPS")
+                st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score => 100 +/- 10. Tout écart de 10 ou plus indique une déviation cinématique de la marche par rapport aux individus témoins sains. Une norme est établié à 81 +/- 14 pour les amputés transtibiaux et 69 +/- 9 pour les amputés transfémoraux")
+                
+                st.markdown("### 📐 GAIT PROFILE SCORE (GPS)")
                 st.write(f"Gauche : {m_gps_L:.1f}° |  Droit : {m_gps_R:.1f}° |  Moyenne Globale : {mean_gps_overall:.1f}")
-                st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 105. Tout score en-dehors indique une atteinte à la variabilité de la marche.")
-                self.generate_bilateral_map_chart(m_gvs_L, m_gvs_R, m_gps_L, m_gps_R, output_chart_path)
-    
+                st.write(f"**Lecture du test** : Un individu présentant une marche saine présentera un score d'environ 5° +/- 1°. La moyenne à atteindre pour les amputés transtibiaux est de 7° +/- 1° et est évalué à 11° +/- 2° pour les amputés transfémoraux")
+                
+                # Appel de la fonction d'affichage du graphique (sans chemin de sauvegarde)
+                self.generate_bilateral_map_chart(m_gvs_L, m_gvs_R, m_gps_L, m_gps_R)
+            
                 return {
                     'GDI': {'Left': m_gdi_L, 'Right': m_gdi_R, 'Overall': mean_gdi_overall},
                     'GPS': {'Left': m_gps_L, 'Right': m_gps_R, 'Overall': mean_gps_overall},
                     'GVS_Left': dict(zip(self.gvs_labels, m_gvs_L)),
                     'GVS_Right': dict(zip(self.gvs_labels, m_gvs_R))
+                }
                 }
         if __name__ == "__main__":
             matrice_saine = "matrice_temoins_459.npy"
