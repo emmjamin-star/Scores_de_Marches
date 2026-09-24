@@ -846,7 +846,6 @@ if st.button("Lancer le calcul des scores de marche"):
                     'GVS_Left': dict(zip(self.gvs_labels, m_gvs_L)),
                     'GVS_Right': dict(zip(self.gvs_labels, m_gvs_R))
                 }
-                }
         if __name__ == "__main__":
             matrice_saine = "matrice_temoins_459.npy"
     
