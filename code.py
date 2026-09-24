@@ -18,7 +18,7 @@ st.title("🦿 Scores de marches - Faps, eFaps, eGVI, GDI, GPS")
 # 1. Upload des fichiers .c3d
 st.header("1. Importer un ou plusieurs fichiers .c3d dont au moins un fichier d'essai statique et trois d'essai dynamique")
 uploaded_files = st.file_uploader("Choisissez un ou plusieurs fichiers .c3d", type="c3d", accept_multiple_files=True)
-st.header("2. Indiquer le score allant de 0 (aucune aide à la marche) à 5 (participant totalement dépendant) pour les aides ambulatoire et les dispositifs d'assistances")
+st.header("2. Indiquer le score allant de 0 (aucune aide à la marche) à 5 (participant totalement dépendant) pour les aides ambulatoire et les dispositifs d'assistances et le nombre de fichier c3d dynamique utilisé, allant de 3 à 5.")
 df = pd.DataFrame({'Score' : [0,1,2,3,4,5]})
 ddf = pd.DataFrame({'Nombre de fichier dynamique c3d' : [3,4,5]})
 
