@@ -350,8 +350,8 @@ if st.button("Lancer le calcul des scores de marche"):
                 deduction_D = min((dbs_diff / 8) * 8, 8) 
         
             # Déductions E et F : Aides et Dispositifs
-            deduction_E = walking_aids
-            deduction_F = assistive_devices
+            deduction_E = AmbulatoryAids
+            deduction_F = AssistiveDevice
         
             # Formule Finale
             total_deductions = deduction_A + deduction_B + deduction_C + deduction_D + deduction_E + deduction_F
