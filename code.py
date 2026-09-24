@@ -65,15 +65,17 @@ if uploaded_files:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".c3d") as tmp:
         tmp.write(selected_file_dynamique5.read())
         tmp5_path = tmp.name
-if NbrDeFichier == 3:
-    trials_list = [tmp1_path, tmp2_path, tmp3_path]
-elif NbrDeFichier == 4:
-    trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path]
-else:
-    trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path]
         
 if st.button("Lancer le calcul des scores de marche"):
     try:
+        # Application nombre de fichiers dynamiques
+        if NbrDeFichier == 3:
+            trials_list = [tmp1_path, tmp2_path, tmp3_path]
+        elif NbrDeFichier == 4:
+            trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path]
+        else:
+            trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path]
+        
         # Score eFAPS
         mval = 1.3/(sqrt(9.81*0.85)) #Chiffre de l'INRETS
         def calculate_faps(trials, static_file, walking_aids=False, assistive_devices=False):
