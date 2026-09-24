@@ -76,8 +76,7 @@ if st.button("Lancer le calcul des scores de marche"):
         else:
             trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path]
         
-        # Score eFAPS
-        mval = 1.3/(sqrt(9.81*0.85)) #Chiffre de l'INRETS
+        # Score FAPS
         def calculate_faps(trials, static_file, walking_aids=False, assistive_devices=False):
             # 1. PARAMÈTRES ANTHROPOMÉTRIQUES
             try:
@@ -217,6 +216,7 @@ if st.button("Lancer le calcul des scores de marche"):
         calculate_faps(trials_list, tmp_path, walking_aids=False, assistive_devices=False)
       
         # Score eFAPS
+        mval = 1.3/(sqrt(9.81*0.85)) #Chiffre de l'INRETS
         def calculate_efaps(trials, static_file, walking_aids=False, assistive_devices=False):
             # 1. PARAMÈTRES ANTHROPOMÉTRIQUES
             try:
@@ -305,21 +305,33 @@ if st.button("Lancer le calcul des scores de marche"):
             avg_st_l = np.mean(results['st_l'])
             avg_dbs = np.mean(results['dbs'])
         
-            # --- NORMALISATION SELON FAPS ---
+            # --- NORMALISATION ---
+            
             # GSL (Ratio Longueur pas / Longueur Jambe)
             gsl_r = avg_sl_r / leg_length
             gsl_l = avg_sl_l / leg_length
             
-            # GV (Vitesse normalisée par jambe = GSL / Step Time)
-            gv_r = gsl_r / avg_st_r
-            gv_l = gsl_l / avg_st_l
+            # Vitesses réelles (m/s)
+            v_r = avg_sl_r / avg_st_r
+            v_l = avg_sl_l / avg_st_l
+        
+            # GV (Vitesse normalisée par le nombre de Froude)
+            froude_denom = np.sqrt(9.81 * leg_length)
+            gv_r = v_r / froude_denom
+            gv_l = v_l / froude_denom
+            
+            # Norme INRETS cible pour Froude
+            mval = 1.3 / (np.sqrt(9.81 * 0.85))
         
             # --- ALGORITHME DE DÉDUCTION ---
             def get_step_function_penalty(gv_val, gsl_val, st_val):
-                # Pénalité progressive si hors des normes (Max ~7.33 pts par paramètre pour atteindre 22)
-                p_v = 0 if 1.1 <= gv_val <= 1.5 else min(min(abs(gv_val - 1.1), abs(gv_val - 1.5)) / 0.4 * 7.33, 7.33)
+                # 1. Pénalité Vitesse (Froude) : proportionnelle à l'écart avec mval (capée à ~7.33 pts)
+                p_v = min(np.abs(gv_val - mval) / 0.082, 7.33)
+                
+                # 2. Pénalités GSL et ST : progressives si hors des normes classiques FAPS
                 p_sl = 0 if 0.69 <= gsl_val <= 0.86 else min(min(abs(gsl_val - 0.69), abs(gsl_val - 0.86)) / 0.2 * 7.33, 7.33)
                 p_st = 0 if 0.50 <= st_val <= 0.63 else min(min(abs(st_val - 0.50), abs(st_val - 0.63)) / 0.2 * 7.33, 7.33)
+                
                 return min(p_v + p_sl + p_st, 22)
         
             # Déductions A et B (Fonctions de pas)
@@ -331,7 +343,6 @@ if st.button("Lancer le calcul des scores de marche"):
             deduction_C = 0 if diff_asy < 0.03 else min(((diff_asy - 0.03) / 0.15) * 8, 8)
         
             # Déduction D : Base de Support Dynamique (Max 8 points)
-            # Norme typique assumée entre 5cm et 10cm de large
             if 5 <= avg_dbs <= 10:
                 deduction_D = 0
             else:
@@ -339,14 +350,14 @@ if st.button("Lancer le calcul des scores de marche"):
                 deduction_D = min((dbs_diff / 8) * 8, 8) 
         
             # Déductions E et F : Aides et Dispositifs
-            deduction_E = AmbulatoryAids
-            deduction_F = AssistiveDevice
+            deduction_E = walking_aids
+            deduction_F = assistive_devices
         
             # Formule Finale
             total_deductions = deduction_A + deduction_B + deduction_C + deduction_D + deduction_E + deduction_F
             score_faps = 100 - total_deductions
             
-            # Plancher théorique du eFAPS
+            # Plancher théorique
             score_min = 30 if (walking_aids or assistive_devices) else 40
             score_faps = max(score_min, score_faps)
             st.markdown("### 📊 Résultats du score eFAPS")
