@@ -20,6 +20,7 @@ st.header("1. Importer un ou plusieurs fichiers .c3d dont au moins un fichier d'
 uploaded_files = st.file_uploader("Choisissez un ou plusieurs fichiers .c3d", type="c3d", accept_multiple_files=True)
 st.header("2. Indiquer le score allant de 0 (aucune aide à la marche) à 5 (participant totalement dépendant) pour les aides ambulatoire et les dispositifs d'assistances")
 df = pd.DataFrame({'Score' : [0,1,2,3,4,5]})
+ddf = pd.DataFrame({'Nombre de fichier dynamique c3d' : [3,4,5]})
 
 AmbulatoryAids = st.selectbox(
     "Pour l'aide ambulatoire :",
@@ -28,6 +29,10 @@ AmbulatoryAids = st.selectbox(
 AssistiveDevice = st.selectbox(
     "Pour le dispositif d'assistance :",
     df['Score'])
+
+NbrDeFichier = st.selectbox(
+    "Nombre de fichiers dynamiques c3d",
+    ddf['Nombre de fichier dynamique c3d'])
 
 if uploaded_files:
     selected_file_statique = st.selectbox("Choisissez un fichier statique pour l'analyse", uploaded_files, format_func=lambda x: x.name)
@@ -60,6 +65,12 @@ if uploaded_files:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".c3d") as tmp:
         tmp.write(selected_file_dynamique5.read())
         tmp5_path = tmp.name
+if NbrDeFichier == 3:
+    trials_list = [tmp1_path, tmp2_path, tmp3_path]
+elif NbrDeFichier == 4:
+    trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path]
+else:
+    trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path]
         
 if st.button("Lancer le calcul des scores de marche"):
     try:
@@ -201,7 +212,6 @@ if st.button("Lancer le calcul des scores de marche"):
             st.write(f"Score FAPS : {score_faps:.2f}")
             st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 100. Tout score en-dehors indique une atteinte à la fonctionnalité de la marche.")
             
-        trials_list = [tmp1_path, tmp2_path, tmp3_path, tmp4_path, tmp5_path]
         calculate_faps(trials_list, tmp_path, walking_aids=False, assistive_devices=False)
       
         # Score eFAPS
@@ -340,7 +350,9 @@ if st.button("Lancer le calcul des scores de marche"):
             st.markdown("### 📊 Résultats du score eFAPS")
             st.write(f"Score eFAPS : {score_faps:.2f}")
             st.write(f"**Lecture du test** : Un individu présentant une marche saine aura un score compris entre 95 et 100. Tout score en-dehors indique une atteinte à la fonctionnalité de la marche.")
+            
         calculate_efaps(trials_list, tmp_path, walking_aids=False, assistive_devices=False)
+       
         # calcul EGVI
         acq_stat = ezc3d.c3d(tmp_path)
         pts_stat = acq_stat['data']['points']
