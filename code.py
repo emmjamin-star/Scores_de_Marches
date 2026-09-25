@@ -175,11 +175,14 @@ if st.button("Lancer le calcul des scores de marche"):
             gv_l = gsl_l / avg_st_l
         
             # --- ALGORITHME DE DÉDUCTION ---
+            # --- ALGORITHME DE DÉDUCTION ---
             def get_step_function_penalty(gv_val, gsl_val, st_val):
-                # Pénalité progressive si hors des normes (Max ~7.33 pts par paramètre pour atteindre 22)
-                p_v = 0 if 1.1 <= gv_val <= 1.5 else min(min(abs(gv_val - 1.1), abs(gv_val - 1.5)) / 0.4 * 7.33, 7.33)
-                p_sl = 0 if 0.69 <= gsl_val <= 0.86 else min(min(abs(gsl_val - 0.69), abs(gsl_val - 0.86)) / 0.2 * 7.33, 7.33)
-                p_st = 0 if 0.50 <= st_val <= 0.63 else min(min(abs(st_val - 0.50), abs(st_val - 0.63)) / 0.2 * 7.33, 7.33)
+                # Pénalité progressive si hors des normes (sans plafond individuel)
+                p_v = 0 if 1.1 <= gv_val <= 1.5 else (min(abs(gv_val - 1.1), abs(gv_val - 1.5)) / 0.4) * 7.33
+                p_sl = 0 if 0.69 <= gsl_val <= 0.86 else (min(abs(gsl_val - 0.69), abs(gsl_val - 0.86)) / 0.2) * 7.33
+                p_st = 0 if 0.50 <= st_val <= 0.63 else (min(abs(st_val - 0.50), abs(st_val - 0.63)) / 0.2) * 7.33
+                
+                # Seul le plafond global de 22 points est conservé
                 return min(p_v + p_sl + p_st, 22)
         
             # Déductions A et B (Fonctions de pas)
@@ -323,15 +326,14 @@ if st.button("Lancer le calcul des scores de marche"):
             # Norme INRETS cible pour Froude
             mval = 1.3 / (np.sqrt(9.81 * 0.85))
         
-            # --- ALGORITHME DE DÉDUCTION ---
+            # Calcul du step function
             def get_step_function_penalty(gv_val, gsl_val, st_val):
-                # 1. Pénalité Vitesse (Froude) : proportionnelle à l'écart avec mval (capée à ~7.33 pts)
-                p_v = min(np.abs(gv_val - mval) / 0.082, 7.33)
+                # Pénalité progressive si hors des normes (sans plafond individuel)
+                p_v = 0 if 1.1 <= gv_val <= 1.5 else (min(abs(gv_val - 1.1), abs(gv_val - 1.5)) / 0.4) * 7.33
+                p_sl = 0 if 0.69 <= gsl_val <= 0.86 else (min(abs(gsl_val - 0.69), abs(gsl_val - 0.86)) / 0.2) * 7.33
+                p_st = 0 if 0.50 <= st_val <= 0.63 else (min(abs(st_val - 0.50), abs(st_val - 0.63)) / 0.2) * 7.33
                 
-                # 2. Pénalités GSL et ST : progressives si hors des normes classiques FAPS
-                p_sl = 0 if 0.69 <= gsl_val <= 0.86 else min(min(abs(gsl_val - 0.69), abs(gsl_val - 0.86)) / 0.2 * 7.33, 7.33)
-                p_st = 0 if 0.50 <= st_val <= 0.63 else min(min(abs(st_val - 0.50), abs(st_val - 0.63)) / 0.2 * 7.33, 7.33)
-                
+                # Seul le plafond global de 22 points est conservé
                 return min(p_v + p_sl + p_st, 22)
         
             # Déductions A et B (Fonctions de pas)
