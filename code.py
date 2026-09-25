@@ -329,7 +329,7 @@ if st.button("Lancer le calcul des scores de marche"):
             # Calcul du step function
             def get_step_function_penalty(gv_val, gsl_val, st_val):
                 # Pénalité progressive si hors des normes (sans plafond individuel)
-                p_v = 0 if 1.1 <= gv_val <= 1.5 else (min(abs(gv_val - 1.1), abs(gv_val - 1.5)) / 0.4) * 7.33
+                p_v = np.abs(gv_val - mval) / 0.082
                 p_sl = 0 if 0.69 <= gsl_val <= 0.86 else (min(abs(gsl_val - 0.69), abs(gsl_val - 0.86)) / 0.2) * 7.33
                 p_st = 0 if 0.50 <= st_val <= 0.63 else (min(abs(st_val - 0.50), abs(st_val - 0.63)) / 0.2) * 7.33
                 
